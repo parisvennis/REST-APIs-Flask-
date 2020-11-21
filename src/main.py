@@ -8,7 +8,7 @@ from flask_swagger import swagger
 from flask_cors import CORS
 from utils import APIException, generate_sitemap
 from admin import setup_admin
-from models import db, User
+from models import db, User, Todo
 #from models import Person
 
 app = Flask(__name__)
@@ -30,14 +30,48 @@ def handle_invalid_usage(error):
 def sitemap():
     return generate_sitemap(app)
 
-@app.route('/user', methods=['GET'])
-def handle_hello():
 
-    response_body = {
-        "msg": "Hello, this is your GET /user response "
-    }
+
+# TO GET ALL OF THE TODOS 
+
+@app.route('/todos', methods=['GET'])
+def handle_todos():
+    todos_query=Todo.query.all()
+    response_body = list(map(lambda x: x.serialize(), todos_query))
+
 
     return jsonify(response_body), 200
+
+
+# TO ADD THE TODOS
+
+@app.route('/todos', methods=['POST'])
+def add_todo():
+    
+    body = request.get_json()
+    if body is None:
+        raise APIException("You need to specify the request body as a json object", status_code=400)
+    if 'label' not in body:
+        raise APIException('You need to specify the label', status_code=400)
+    if 'done' not in body:
+        raise APIException('You need to specify done', status_code=400)
+
+    todo = Todo(label=body['label'], done=body['done'])
+    db.session.add(todo)
+    db.session.commit()
+    return "ok", 200
+
+# delete todo
+
+@app.route('/todos/<int:id>', methods=['DELETE'])
+def delete_todos(id):
+    todo = Todo.query.get(id)
+    if todo is None:
+        raise APIException('Todo not found', status_code=404)
+    db.session.delete(todo)
+    db.session.commit()
+    return "ok", 200
+
 
 # this only runs if `$ python src/main.py` is executed
 if __name__ == '__main__':
